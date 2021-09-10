@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -476,11 +477,13 @@ int config_load(const char *diskname)
 			if (value < 0 || value > 3)
 				value = 3;
 			Config.AnalogMode = value;
+#ifdef RUMBLE
 		} else if (!strcmp(line, "RumbleGain")) {
 			sscanf(arg, "%d", &value);
 			if (value < 0 || value > 100)
 				value = 100;
 			Config.RumbleGain = value;
+#endif
 		} else if (!strcmp(line, "MenuToggleCombo")) {
 			sscanf(arg, "%d", &value);
 			Config.MenuToggleCombo = value;
@@ -1056,8 +1059,10 @@ void pad_update()
 		pl_pause();    // Tell plugin_lib we're pausing emu
 		update_window_size(320, 240, false);
 
+#ifdef RUMBLE
 		/* Disable any rumble effects */
 		trigger_rumble(0, 0);
+#endif
 
 		GameMenu();
 		emu_running = true;

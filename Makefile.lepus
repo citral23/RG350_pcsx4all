@@ -1,4 +1,4 @@
-TARGET = pcsx4all
+TARGET = pcsx4all_lepus
 PORT   = sdl
 
 # If V=1 was passed to 'make', don't hide commands:
@@ -26,11 +26,11 @@ RECOMPILER = mips
 RM     = rm -f
 MD     = mkdir -p
 
-TOOLCHAIN_DIR := /opt/gcw0-toolchain/usr/bin
+TOOLCHAIN_DIR := /opt/lepus-toolchain/usr/bin
 CC     = $(TOOLCHAIN_DIR)/mipsel-linux-gcc
 CXX    = $(TOOLCHAIN_DIR)/mipsel-linux-g++
 LD     = $(TOOLCHAIN_DIR)/mipsel-linux-g++
-HUGEEDIT = /opt/gcw0-toolchain/bin/hugeedit
+HUGEEDIT = /opt/lepus-toolchain/bin/hugeedit
 
 SYSROOT     := $(shell $(CC) --print-sysroot)
 SDL_CONFIG  := $(SYSROOT)/usr/bin/sdl-config
@@ -42,7 +42,7 @@ LDFLAGS := $(SDL_LIBS) -lSDL_mixer -lSDL_image -lrt -lz
 ifdef A320
 	C_ARCH = -mno-memcpy -mips32 -msoft-float -DGCW_ZERO -DRG350 -DDINGUX_BETA -DDYNAREC_SKIP_DCACHE_FLUSH -DTMPFS_MIRRORING -DTMPFS_DIR=\"/tmp\"
 else
-	C_ARCH = -mno-memcpy -mips32r2 -DGCW_ZERO -DRUMBLE -DRG350 -DDINGUX_BETA -DSHMEM_MIRRORING
+	C_ARCH = -DGCW_ZERO -DRG350 -DDINGUX_BETA -DSHMEM_MIRRORING
 endif
 
 ifeq ($(DEV),1)
@@ -60,16 +60,16 @@ else
 	#  fixed mappings by dynarec, etc. Otherwise, the Linux default seems to be
 	#  0x40_0000 i.e., offset 4MB from 0. That's not enough room to map and
 	#  mirror PS1 address space.
-	#C_ARCH  += -DMMAP_TO_ADDRESS_ZERO
-	#LDFLAGS += -Wl,-Ttext-segment=0x40000000
-	LDFLAGS = $(SDL_LIBS) -lrt -lz -Wl,--as-needed -Wl,--gc-sections -s
+	# C_ARCH  += -DMMAP_TO_ADDRESS_ZERO
+	# LDFLAGS += -Wl,-Ttext-segment=0x40000000
+	LDFLAGS += -Wl,--as-needed -Wl,--gc-sections -s
 	# Furthermore, div-by-zero checks are disabled (helps software rendering)
 	C_ARCH  += -mno-check-zero-division
 endif
 
-LDFLAGS += -zcommon-page-size=2097152 -zmax-page-size=2097152 -lhugetlbfs
+LDFLAGS += -Wl,-zcommon-page-size=2097152 -Wl,-zmax-page-size=2097152 -lhugetlbfs
 
-CFLAGS := $(C_ARCH) -mplt -mno-shared -O4 -fexpensive-optimizations -flto -DUSE_BGR15 -DTIME_IN_MSEC \
+CFLAGS := $(C_ARCH) -mplt -mno-shared -O2 -ffast-math -DUSE_BGR15 -DTIME_IN_MSEC \
 	-Wall -Wunused -Wpointer-arith \
 	-Wno-sign-compare -Wno-cast-align \
 	-Isrc -Isrc/spu/$(SPU) -D$(SPU) -Isrc/gpu/$(GPU) \
@@ -86,6 +86,8 @@ ifeq ($(DEV),1)
 else
 	CFLAGS += -ffunction-sections -fdata-sections -flto
 endif
+
+LDFLAGS += $(CFLAGS)
 
 # Convert plugin names to uppercase and make them CFLAG defines
 CFLAGS += -D$(shell echo $(GPU) | tr a-z A-Z)
@@ -113,8 +115,6 @@ OBJS = \
 	obj/cdriso.o obj/cdrom.o obj/ppf.o obj/cheat.o \
 	obj/sio.o obj/pad.o \
 	obj/external_lib/ioapi.o obj/external_lib/unzip.o \
-	obj/libShake/src/common/error.o obj/libShake/src/common/helpers.o \
-	obj/libShake/src/common/presets.o obj/libShake/src/linux/shake.o
 
 ifdef RECOMPILER
 OBJS += \
@@ -310,3 +310,4 @@ maketree: $(sort $(OBJDIRS))
 clean:
 	$(RM) -r obj
 	$(RM) $(TARGET)
+
