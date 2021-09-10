@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1461,7 +1462,9 @@ static int settings_defaults()
 	Config.SlowBoot = 0;
 	Config.AnalogArrow = 0;
 	Config.AnalogMode = 3;
+#ifdef RUMBLE
 	Config.RumbleGain = 100;
+#endif
 	Config.MenuToggleCombo = 0;
 	Config.AsyncCD = 0;
 	Config.RCntFix = 0;

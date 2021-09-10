@@ -1,4 +1,4 @@
-TARGET = pcsx4all
+TARGET = pcsx4all_gcw0
 PORT   = sdl
 
 # If V=1 was passed to 'make', don't hide commands:
@@ -7,6 +7,8 @@ ifeq ($(V),1)
 else
 	HIDECMD:=@
 endif
+
+HAVE_CHD = 1
 
 # Using 'gpulib' adapted from PCSX Rearmed is default, specify
 #  USE_GPULIB=0 as param to 'make' when building to disable it.
@@ -22,10 +24,13 @@ SPU   = spu_pcsxrearmed
 RECOMPILER = mips
 
 RM     = rm -f
-MD     = mkdir
-CC     = mipsel-linux-gcc
-CXX    = mipsel-linux-g++
-LD     = mipsel-linux-g++
+MD     = mkdir -p
+
+TOOLCHAIN_DIR := /opt/gcw0-toolchain/usr/bin
+CC     = $(TOOLCHAIN_DIR)/mipsel-linux-gcc
+CXX    = $(TOOLCHAIN_DIR)/mipsel-linux-g++
+LD     = $(TOOLCHAIN_DIR)/mipsel-linux-g++
+HUGEEDIT = /opt/gcw0-toolchain/bin/hugeedit
 
 SYSROOT     := $(shell $(CC) --print-sysroot)
 SDL_CONFIG  := $(SYSROOT)/usr/bin/sdl-config
@@ -35,9 +40,9 @@ SDL_LIBS    := $(shell $(SDL_CONFIG) --libs)
 LDFLAGS := $(SDL_LIBS) -lSDL_mixer -lSDL_image -lrt -lz
 
 ifdef A320
-	C_ARCH = -mips32 -msoft-float -DGCW_ZERO -DDYNAREC_SKIP_DCACHE_FLUSH -DTMPFS_MIRRORING -DTMPFS_DIR=\"/tmp\"
+	C_ARCH = -mno-memcpy -mips32 -msoft-float -DGCW_ZERO -DRG350 -DDINGUX_BETA -DDYNAREC_SKIP_DCACHE_FLUSH -DTMPFS_MIRRORING -DTMPFS_DIR=\"/tmp\"
 else
-	C_ARCH = -mips32r2 -DGCW_ZERO -DSHMEM_MIRRORING
+	C_ARCH = -DGCW_ZERO -DRG350 -DDINGUX_BETA -DSHMEM_MIRRORING
 endif
 
 ifeq ($(DEV),1)
@@ -55,24 +60,34 @@ else
 	#  fixed mappings by dynarec, etc. Otherwise, the Linux default seems to be
 	#  0x40_0000 i.e., offset 4MB from 0. That's not enough room to map and
 	#  mirror PS1 address space.
-	#C_ARCH  += -DMMAP_TO_ADDRESS_ZERO
-	#LDFLAGS += -Wl,-Ttext-segment=0x40000000
+	# C_ARCH  += -DMMAP_TO_ADDRESS_ZERO
+	# LDFLAGS += -Wl,-Ttext-segment=0x40000000
 	LDFLAGS = $(SDL_LIBS) -lrt -lz -Wl,--as-needed -Wl,--gc-sections -s
-	LDFLAGS += -flto
 	# Furthermore, div-by-zero checks are disabled (helps software rendering)
 	C_ARCH  += -mno-check-zero-division
 endif
 
-CFLAGS := $(C_ARCH) -mplt -mno-shared -ggdb3 -O2 -flto -DTIME_IN_MSEC \
+LDFLAGS += -zcommon-page-size=2097152 -zmax-page-size=2097152 -lhugetlbfs
+
+CFLAGS := $(C_ARCH) -mplt -mno-shared -O2 -ffast-math -DUSE_BGR15 -DTIME_IN_MSEC \
 	-Wall -Wunused -Wpointer-arith \
 	-Wno-sign-compare -Wno-cast-align \
 	-Isrc -Isrc/spu/$(SPU) -D$(SPU) -Isrc/gpu/$(GPU) \
 	-Isrc/port/$(PORT) \
 	-Isrc/plugin_lib \
 	-Isrc/external_lib \
+	-Isrc/libShake/include \
 	-DXA_HACK \
 	-DINLINE="static __inline__" -Dasm="__asm__ __volatile__" \
 	$(SDL_CFLAGS)
+
+ifeq ($(DEV),1)
+	CFLAGS += -ggdb3
+else
+	CFLAGS += -ffunction-sections -fdata-sections -flto
+endif
+
+LDFLAGS += $(CFLAGS)
 
 # Convert plugin names to uppercase and make them CFLAG defines
 CFLAGS += -D$(shell echo $(GPU) | tr a-z A-Z)
@@ -85,7 +100,8 @@ endif
 OBJDIRS = obj obj/gpu obj/gpu/$(GPU) obj/spu obj/spu/$(SPU) \
 	  obj/recompiler obj/recompiler/$(RECOMPILER) \
 	  obj/port obj/port/$(PORT) \
-	  obj/plugin_lib obj/external_lib
+	  obj/plugin_lib obj/external_lib \
+	  obj/libShake/src/common obj/libShake/src/linux
 
 all: maketree $(TARGET)
 
@@ -98,7 +114,7 @@ OBJS = \
 	obj/mdec.o obj/decode_xa.o \
 	obj/cdriso.o obj/cdrom.o obj/ppf.o obj/cheat.o \
 	obj/sio.o obj/pad.o \
-	obj/external_lib/ioapi.o obj/external_lib/unzip.o
+	obj/external_lib/ioapi.o obj/external_lib/unzip.o \
 
 ifdef RECOMPILER
 OBJS += \
@@ -207,11 +223,55 @@ endif
 # spu_pcsxrearmed END
 #******************************************
 
+#******************************************
+# libchdr section BEGIN
+#******************************************
+ifeq "$(HAVE_CHD)" "1"
+
+OBJDIRS +=  \
+	obj/external_lib/lzma-19.00/src \
+	obj/external_lib/libchdr/src
+
+OBJS += \
+	obj/external_lib/lzma-19.00/src/Alloc.o \
+	obj/external_lib/lzma-19.00/src/Bra86.o \
+	obj/external_lib/lzma-19.00/src/BraIA64.o \
+	obj/external_lib/lzma-19.00/src/CpuArch.o \
+	obj/external_lib/lzma-19.00/src/Delta.o \
+	obj/external_lib/lzma-19.00/src/LzFind.o \
+	obj/external_lib/lzma-19.00/src/Lzma86Dec.o \
+	obj/external_lib/lzma-19.00/src/LzmaDec.o \
+	obj/external_lib/lzma-19.00/src/LzmaEnc.o \
+	obj/external_lib/lzma-19.00/src/Sort.o \
+	obj/external_lib/libchdr/src/libchdr_bitstream.o \
+	obj/external_lib/libchdr/src/libchdr_cdrom.o \
+	obj/external_lib/libchdr/src/libchdr_chd.o \
+	obj/external_lib/libchdr/src/libchdr_flac.o \
+	obj/external_lib/libchdr/src/libchdr_huffman.o
+
+CFLAGS += \
+	-Isrc/external_lib/lzma-19.00/include \
+	-Isrc/external_lib/libchdr/include
+
+CFLAGS += \
+	-DHAVE_CHD -D_7ZIP_ST
+
+LDFLAGS += -lm
+
+endif
+#******************************************
+# libchdr section END
+#******************************************
+
 CXXFLAGS := $(CFLAGS) -fno-rtti -fno-exceptions
+ifeq ($(DEV),)
+	LDFLAGS += $(CXXFLAGS)
+endif
 
 $(TARGET): $(OBJS)
 	@echo Linking $(TARGET)...
 	$(HIDECMD)$(LD) $(OBJS) $(LDFLAGS) -o $@
+	$(HIDECMD)$(HUGEEDIT) --text --data $(TARGET)
 	@echo
 ifeq ($(DEV),1)
 	@echo "-> WARNING: This is a development build.                                  "
@@ -250,3 +310,4 @@ maketree: $(sort $(OBJDIRS))
 clean:
 	$(RM) -r obj
 	$(RM) $(TARGET)
+

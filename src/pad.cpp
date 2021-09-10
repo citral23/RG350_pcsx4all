@@ -209,10 +209,12 @@ unsigned char PAD1_poll(unsigned char value) {
 					changed = 1;
 				}
 
+#ifdef RUMBLE
 				if (changed) {
 					trigger_rumble(player_controller[0].VibF[0],
 							player_controller[0].VibF[1]);
 				}
+#endif
 			}
 			break;
 		case CMD_VIBRATION_TOGGLE:

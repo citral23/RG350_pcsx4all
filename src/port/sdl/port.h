@@ -95,8 +95,10 @@ const char *bios_file_get();
 void bios_file_set(const char *filename);
 void check_spec_bios();
 
+#ifdef RUMBLE
 int set_rumble_gain(unsigned gain);
 int trigger_rumble(uint8_t low, uint8_t high);
+#endif
 
 int SelectGame();
 int GameMenu();
