@@ -1461,11 +1461,11 @@ static int settings_defaults()
 	Config.HLE = 1;
 	Config.SlowBoot = 0;
 	Config.AnalogArrow = 0;
-	Config.AnalogMode = 3;
+	Config.AnalogMode = 0;
 #ifdef RUMBLE
 	Config.RumbleGain = 100;
 #endif
-	Config.MenuToggleCombo = 0;
+	Config.MenuToggleCombo = 1;
 	Config.AsyncCD = 0;
 	Config.RCntFix = 0;
 	Config.VSyncWA = 0;

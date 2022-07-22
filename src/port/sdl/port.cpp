@@ -1472,13 +1472,13 @@ int main (int argc, char **argv)
 	Config.SpuIrq=0; /* 1=SPU IRQ always on, fixes some games */
 
 	Config.AnalogArrow = 0; /* 0=disable 1=use L-stick as D-pad arrow key */
-	Config.AnalogMode = 3; /* 0-Digital 1-DualAnalog 2-DualShock (digital mode) 3-DualShock (analog enabled) */
+	Config.AnalogMode = 0; /* 0-Digital 1-DualAnalog 2-DualShock (digital mode) 3-DualShock (analog enabled) */
 	Config.RumbleGain = 100; /* [0,100]-Rumble effect strength */
 	/* Gamepad combo used to open menu
 	 * 0: L3 + R3
 	 * 1: SELECT + START
 	 * 2: None */
-	Config.MenuToggleCombo = 0;
+	Config.MenuToggleCombo = 1;
 
 	Config.SyncAudio=0;	/* 1=emu waits if audio output buffer is full
 	                       (happens seldom with new auto frame limit) */
